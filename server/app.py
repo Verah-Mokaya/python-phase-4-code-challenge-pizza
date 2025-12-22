@@ -14,29 +14,46 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.json.compact = False
 
 migrate = Migrate(app, db)
-
 db.init_app(app)
 
 api = Api(app)
-
 
 @app.route("/")
 def index():
     return "<h1>Code challenge</h1>"
 
+#RESTAURANT BY ID (GET + DELETE) 
 @app.route("/restaurants/<int:id>", methods=["GET"])
-def restaurant_by_id_fix(id):
+def get_restaurant_by_id(id):
     restaurant = Restaurant.query.get(id)
-
     if not restaurant:
         return make_response({"error": "Restaurant not found"}, 404)
-
+    
     return make_response(
-        restaurant.to_dict(include=("restaurant_pizzas",)),
+        restaurant.to_dict(
+            only=("id", "name", "address"),
+             include={
+                "restaurant_pizzas": {
+                    "include": {
+                        "pizza": {"only": ("id", "name", "ingredients")}
+                    },
+                    "only": ("id", "price", "pizza_id", "restaurant_id")
+                }
+            }
+        ),
         200
     )
 
+@app.route("/restaurants/<int:id>", methods=["DELETE"])
+def delete_restaurant_by_id(id):
+    restaurant = Restaurant.query.get(id)
+    if not restaurant:
+        return make_response({"error": "Restaurant not found"}, 404)
+    db.session.delete(restaurant)
+    db.session.commit()
+    return make_response("", 204)
 
+# ------------------ ALL RESTAURANTS ------------------
 class Restaurants(Resource):
     def get(self):
         restaurants = Restaurant.query.all()
@@ -44,32 +61,9 @@ class Restaurants(Resource):
             [r.to_dict(only=("id", "name", "address")) for r in restaurants],
             200
         )
-
 api.add_resource(Restaurants, "/restaurants")
 
-class RestaurantById(Resource):
-    def get(self, id):
-        restaurant = Restaurant.query.get(id)
-
-        if not restaurant:
-            return make_response({"error": "Restaurant not found"}, 404)
-
-        # ✅ Only include restaurant_pizzas
-        return make_response(
-            restaurant.to_dict(include=("restaurant_pizzas",)),
-            200
-        )
-
-    def delete(self, id):
-        restaurant = Restaurant.query.get(id)
-
-        if not restaurant:
-            return make_response({"error": "Restaurant not found"}, 404)
-
-        db.session.delete(restaurant)
-        db.session.commit()
-        return make_response("", 204)
-
+# ------------------ PIZZAS ------------------
 class Pizzas(Resource):
     def get(self):
         pizzas = Pizza.query.all()
@@ -77,9 +71,9 @@ class Pizzas(Resource):
             [p.to_dict(only=("id", "name", "ingredients")) for p in pizzas],
             200
         )
-
 api.add_resource(Pizzas, "/pizzas")
 
+# ------------------ RESTAURANT_PIZZAS ------------------
 class RestaurantPizzas(Resource):
     def post(self):
         data = request.get_json()
@@ -95,17 +89,12 @@ class RestaurantPizzas(Resource):
             return make_response(
                 rp.to_dict(
                     include={
-                        "pizza": {
-                            "only": ("id", "name", "ingredients")
-                        },
-                        "restaurant": {
-                            "only": ("id", "name", "address")
-                        }
+                        "pizza": {"only": ("id", "name", "ingredients")},
+                        "restaurant": {"only": ("id", "name", "address")}
                     }
                 ),
                 201
             )
-
         except Exception as e:
             return make_response({"errors": [str(e)]}, 400)
 

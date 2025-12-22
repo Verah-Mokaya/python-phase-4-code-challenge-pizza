@@ -18,7 +18,7 @@ class Restaurant(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
     address = db.Column(db.String)
-    
+
     # add relationships
     restaurant_pizzas = db.relationship(
         "RestaurantPizza",
@@ -72,7 +72,7 @@ class RestaurantPizza(db.Model, SerializerMixin):
     @validates("price")
     def validate_price(self, key, price):
         if price < 1 or price > 30:
-            raise ValueError("Price must be between 1 and 30")
+            raise ValueError("Price must be between 1 and 30 dollars.")
         return price
 
     def __repr__(self):
