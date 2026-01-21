@@ -28,21 +28,22 @@ def get_restaurant_by_id(id):
     restaurant = Restaurant.query.get(id)
     if not restaurant:
         return make_response({"error": "Restaurant not found"}, 404)
-    
-    return make_response(
-        restaurant.to_dict(
+
+    try:
+        data = restaurant.to_dict(
             only=("id", "name", "address"),
-             include={
+            include={
                 "restaurant_pizzas": {
+                    "only": ("id", "price", "pizza_id", "restaurant_id"),
                     "include": {
                         "pizza": {"only": ("id", "name", "ingredients")}
-                    },
-                    "only": ("id", "price", "pizza_id", "restaurant_id")
+                    }
                 }
             }
-        ),
-        200
-    )
+        )
+        return make_response(data, 200)
+    except Exception as e:
+        return make_response({"error": str(e)}, 500)
 
 @app.route("/restaurants/<int:id>", methods=["DELETE"])
 def delete_restaurant_by_id(id):
