@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from models import db, Restaurant, RestaurantPizza, Pizza
 from flask_migrate import Migrate
-from flask import Flask, request, make_response
+from flask import Flask, request, jsonify, make_response
 from flask_restful import Api, Resource
 import os
 
@@ -28,22 +28,7 @@ def get_restaurant_by_id(id):
     restaurant = Restaurant.query.get(id)
     if not restaurant:
         return make_response({"error": "Restaurant not found"}, 404)
-
-    try:
-        data = restaurant.to_dict(
-            only=("id", "name", "address"),
-            include={
-                "restaurant_pizzas": {
-                    "only": ("id", "price", "pizza_id", "restaurant_id"),
-                    "include": {
-                        "pizza": {"only": ("id", "name", "ingredients")}
-                    }
-                }
-            }
-        )
-        return make_response(data, 200)
-    except Exception as e:
-        return make_response({"error": str(e)}, 500)
+    return make_response(restaurant.to_dict(), 200)
 
 @app.route("/restaurants/<int:id>", methods=["DELETE"])
 def delete_restaurant_by_id(id):
@@ -87,17 +72,10 @@ class RestaurantPizzas(Resource):
             db.session.add(rp)
             db.session.commit()
 
-            return make_response(
-                rp.to_dict(
-                    include={
-                        "pizza": {"only": ("id", "name", "ingredients")},
-                        "restaurant": {"only": ("id", "name", "address")}
-                    }
-                ),
-                201
-            )
-        except Exception as e:
-            return make_response({"errors": [str(e)]}, 400)
+            return rp.to_dict(), 201
+        
+        except ValueError as e:
+            return ({"errors": ["validation errors"]}, 400)
 
 api.add_resource(RestaurantPizzas, "/restaurant_pizzas")
 
